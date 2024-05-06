@@ -14,6 +14,12 @@ function usernameOnlick(){
 	localStorage.clear();
 	store.islogin = false
 }
+function navigateToTimeline() {
+    setTimeout(() => {
+        router.push('timeline');
+    }, 50); // 延迟 50 毫秒
+}
+
 </script>
 <template>
 <!----------------------------------------------------------------------
@@ -29,7 +35,10 @@ NAVBAR (remove topnav if you don't want changed nav background on scroll)
 	<div class="navbar-collapse collapse" id="navbarColor02" style="">
 		<ul class="navbar-nav mr-auto d-flex align-items-center">
 			<li class="nav-item">
-			<a class="nav-link" @click="router.push('timeline')" style="cursor: pointer">时间线</a>
+			<!-- <a class="nav-link" @click="router.push('timeline')" style="cursor: pointer">时间线</a> -->
+				<transition name="fade">
+					<a class="nav-link" @click="navigateToTimeline" style="cursor: pointer">时间线</a>
+				</transition>
 			</li>
 			<li class="nav-item dropdown">
 			<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -80,6 +89,15 @@ NAVBAR (remove topnav if you don't want changed nav background on scroll)
 <!-- End Navbar -->
 </template>
 <style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 	.demo-type {
 	display: flex;
 	}

@@ -10,11 +10,11 @@ def get_user(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
 
 
-def get_user_by_verify(db: Session, username: str, password: str):
-    fake_hashed_password = password + "notreallyhashed"
-    where = and_(models.User.username == username, models.User.hashed_password == fake_hashed_password)
-    resp = db.query(models.User).filter(where).first()
-    return resp
+# def get_user_by_verify(db: Session, username: str, password: str):
+#     fake_hashed_password = password + "notreallyhashed"
+#     where = and_(models.User.username == username, models.User.hashed_password == fake_hashed_password)
+#     resp = db.query(models.User).filter(where).first()
+#     return resp
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 100):
