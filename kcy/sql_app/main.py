@@ -2,7 +2,7 @@ from datetime import timedelta, datetime, timezone
 
 from typing import Union
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, UploadFile
 
 from jose import JWTError, jwt
 
@@ -129,6 +129,31 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 #     if db_user is None:
 #         raise HTTPException(status_code=404, detail="该用户没找到")
 #     return [db_user]
+
+@app.get("/timeline")
+async def load_albums(start_time: Union[str, None], end_time: Union[str, None], db: Session = Depends(get_db)):
+    """
+    kcy
+    :param start_time: 开始时间
+    :param end_time: 结束时间
+    :param db: 数据链接
+    :return: 相册
+    """
+    print("开始请求接口")
+    print("start_time",start_time)
+    print("end_time",end_time)
+    albums_list = crud.get_albums(db,start_time,end_time)
+    print(albums_list)
+    # 请求数据库查询
+    return {"code": 2000, "message": "请求成功", "data": albums_list}
+
+
+
+@app.post("/upload")
+async def upload_albums(file:list[UploadFile]):
+    print(file)
+
+
 
 
 @app.post("/users/{user_id}/items", response_model=schemas.Item)

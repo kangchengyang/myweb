@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from . import models, schemas
-from sqlalchemy import and_
+from sqlalchemy import between
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -65,3 +65,12 @@ def create_user_item(db: Session, item: schemas.ItemCreate, user_id: int):
     db.commit()
     db.refresh(db_item)
     return db_item
+
+
+# 请求数据库返回相册
+def get_albums(db: Session, start_time: str, end_time: str):
+    if start_time != 'undefined' and end_time != 'undefined':
+        albums = db.query(models.Albums).filter(between(models.Albums.CreatedAt, start_time, end_time)).all()
+    else:
+        albums = db.query(models.Albums).limit(5).all()
+    return albums
