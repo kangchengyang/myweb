@@ -10,62 +10,20 @@ const drawer = ref(false)
 const textarea = ref('')
 const dialogImageUrl = ref('')
 const dialogVisible = ref(false)
-const formData = new FormData();
-const album_list = ref([{
-  "time": "2024-4-30",
-  "image_list": [
-    'https://fuss10.elemecdn.com/a/3f/3302e58f9a181d2509f3dc0fa68b0jpeg.jpeg',
-    'https://fuss10.elemecdn.com/1/34/19aa98b1fcb2781c4fba33d850549jpeg.jpeg',
-    'https://fuss10.elemecdn.com/0/6f/e35ff375812e6b0020b6b4e8f9583jpeg.jpeg',
-    'https://fuss10.elemecdn.com/9/bb/e27858e973f5d7d3904835f46abbdjpeg.jpeg',
-    'https://fuss10.elemecdn.com/d/e6/c4d93a3805b3ce3f323f7974e6f78jpeg.jpeg',
-    'https://fuss10.elemecdn.com/3/28/bbf893f792f03a54408b3b7a7ebf0jpeg.jpeg',
-    'https://fuss10.elemecdn.com/2/11/6535bcfb26e4c79b48ddde44f4b6fjpeg.jpeg',
-  ],
-  "desc": "这是一组图片描述"
-}, {
-  "time": "2024-4-30",
-  "image_list": [
-    'https://fuss10.elemecdn.com/a/3f/3302e58f9a181d2509f3dc0fa68b0jpeg.jpeg',
-    'https://fuss10.elemecdn.com/1/34/19aa98b1fcb2781c4fba33d850549jpeg.jpeg',
-    'https://fuss10.elemecdn.com/0/6f/e35ff375812e6b0020b6b4e8f9583jpeg.jpeg',
-    'https://fuss10.elemecdn.com/9/bb/e27858e973f5d7d3904835f46abbdjpeg.jpeg',
-    'https://fuss10.elemecdn.com/d/e6/c4d93a3805b3ce3f323f7974e6f78jpeg.jpeg',
-    'https://fuss10.elemecdn.com/3/28/bbf893f792f03a54408b3b7a7ebf0jpeg.jpeg',
-    'https://fuss10.elemecdn.com/2/11/6535bcfb26e4c79b48ddde44f4b6fjpeg.jpeg',
-  ],
-  "desc": "这是一组图片描述"
-}, {
-  "time": "2024-4-30",
-  "image_list": [
-    'https://fuss10.elemecdn.com/a/3f/3302e58f9a181d2509f3dc0fa68b0jpeg.jpeg',
-    'https://fuss10.elemecdn.com/1/34/19aa98b1fcb2781c4fba33d850549jpeg.jpeg',
-    'https://fuss10.elemecdn.com/0/6f/e35ff375812e6b0020b6b4e8f9583jpeg.jpeg',
-    'https://fuss10.elemecdn.com/9/bb/e27858e973f5d7d3904835f46abbdjpeg.jpeg',
-    'https://fuss10.elemecdn.com/d/e6/c4d93a3805b3ce3f323f7974e6f78jpeg.jpeg',
-    'https://fuss10.elemecdn.com/3/28/bbf893f792f03a54408b3b7a7ebf0jpeg.jpeg',
-    'https://fuss10.elemecdn.com/2/11/6535bcfb26e4c79b48ddde44f4b6fjpeg.jpeg',
-  ],
-  "desc": "这是一组图片描述"
-}, {
-  "time": "2024-4-30",
-  "image_list": [
-    'https://fuss10.elemecdn.com/a/3f/3302e58f9a181d2509f3dc0fa68b0jpeg.jpeg',
-    'https://fuss10.elemecdn.com/1/34/19aa98b1fcb2781c4fba33d850549jpeg.jpeg',
-    'https://fuss10.elemecdn.com/0/6f/e35ff375812e6b0020b6b4e8f9583jpeg.jpeg',
-    'https://fuss10.elemecdn.com/9/bb/e27858e973f5d7d3904835f46abbdjpeg.jpeg',
-    'https://fuss10.elemecdn.com/d/e6/c4d93a3805b3ce3f323f7974e6f78jpeg.jpeg',
-    'https://fuss10.elemecdn.com/3/28/bbf893f792f03a54408b3b7a7ebf0jpeg.jpeg',
-    'https://fuss10.elemecdn.com/2/11/6535bcfb26e4c79b48ddde44f4b6fjpeg.jpeg',
-  ],
-  "desc": "这是一组图片描述"
-}]);
+const str_token = JSON.parse(ref(localStorage.getItem('user')).value)['Token']['access_token']
+const uploadRef = ref();
+const textareaValue = ref('')
+const album_list = ref([]);
 
 //该函数用于接口请求图片数据
 let startTime = value2.value['0']
 let endTime = value2.value['1']
 axios.get(`http://127.0.0.1:8080/timeline?start_time=${startTime}&end_time=${endTime}`).then((response) => {
-  console.log(response)
+  album_list.value = response.data.data
+  // console.log(response.data.data[0].image_list)
+  // response.data.data[0].image_list.forEach(element => {
+  //   console.log(element)
+  // });
 })
 const searchTime = () => {
   if (value2.value == null) {
@@ -93,31 +51,24 @@ const searchTime = () => {
 }
 const fileList = ref([])
 
-async function finish_success(){
-  console.log("开始上传")
 
-  for (const item of fileList.value){
-    console.log(item.raw)
-    formData.append("file",item.raw);
-  }
-  console.log(formData);
-
-  axios.post('http://127.0.0.1:8080/upload',formData,{
-    headers: {
-    'Content-Type': 'multipart/form-data'
-    }
-  }).then(response=>{
-    console.log(response)
-  })
-    
+const finish_success = () => {
+  console.log(str_token)
+  console.log(textareaValue.value)
+  uploadRef.value.submit()
 }
 
-function handleRemove(){
+function handleRemove() {
 
 }
-function handlePictureCardPreview(){
-  
+function handlePictureCardPreview() {
+
 }
+
+async function file_success(response) {
+  console.log(response)
+}
+
 </script>
 
 <template>
@@ -150,8 +101,12 @@ function handlePictureCardPreview(){
         </el-button>
         <el-drawer v-model="drawer" title="上传图片" :with-header="false" size="35%">
           <div class="upload_albums">
-            <el-upload v-model:file-list="fileList" list-type="picture-card" :on-preview="handlePictureCardPreview"
-              :on-remove="handleRemove" :multiple="true" :auto-upload="false">
+            <el-upload ref="uploadRef" v-model:file-list="fileList" list-type="picture-card"
+              :on-preview="handlePictureCardPreview" action="http://127.0.0.1:8080/upload"
+              :headers="{'token':str_token}"
+              :data="{'desc':textareaValue}"
+              :on-remove="handleRemove" :multiple="true" :auto-upload="false" :on-success="file_success"
+              :on-error="file_error">
               <el-icon>
                 <Plus />
               </el-icon>
@@ -160,7 +115,7 @@ function handlePictureCardPreview(){
               <img w-full :src="dialogImageUrl" alt="Preview Image" />
             </el-dialog>
           </div>
-          <el-input v-model="textarea" :rows="2" type="textarea" placeholder="图片描述" />
+          <el-input v-model="textareaValue" :rows="2" type="textarea" placeholder="图片描述" />
           <div class="finish" style="margin-top: 0.8rem; display: flex; justify-content: center;">
             <el-button @click="finish_success" type="success" round>完成</el-button>
           </div>
@@ -175,7 +130,7 @@ function handlePictureCardPreview(){
             <el-text tag="i">{{ item.desc }}</el-text>
             <!--旧版 <el-image v-for="image,index in item.image_list" :src="image" style="width: 4rem; height: 4rem;"
               :preview-src-list="item.image_list" :initial-index="index" /> -->
-            <div class="album">
+            <div class="album" style="z-index: 100;">
               <el-image v-for="image, index in item.image_list" :src="image" style="width: 16%; height: 16%;"
                 :preview-src-list="item.image_list" :initial-index="index" />
               <!-- 注意：如果您想要图片预览功能，您可能需要一个不同的解决方案 -->
@@ -261,5 +216,15 @@ function handlePictureCardPreview(){
 .demo-datetime-picker .block {
   padding: 30px 0;
   text-align: center;
+}
+:deep(.el-image-viewer__close) {
+    background-color: var(--el-text-color-regular);
+    border-color: #fff;
+    color: #fff;
+    font-size: 24px;
+    height: 44px;
+    width: 44px;
+    left: 92rem;
+    top: 6.8rem;
 }
 </style>

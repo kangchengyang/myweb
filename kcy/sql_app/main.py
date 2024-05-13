@@ -1,14 +1,16 @@
+import base64
 from datetime import timedelta, datetime, timezone
 
 from typing import Union
-
-from fastapi import Depends, FastAPI, HTTPException, status, UploadFile
+from io import BytesIO
+import json
+from fastapi import Depends, FastAPI, HTTPException, status, UploadFile, File, Form, Header, Body
 
 from jose import JWTError, jwt
-
+import traceback
 from sqlalchemy.orm import Session
 
-from kcy.sql_app import crud, models, schemas
+from kcy.sql_app import crud, models, schemas, getminio
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from kcy.sql_app.database import session_local, engin
 
@@ -18,11 +20,14 @@ from kcy.sql_app.schemas import TokenData, Token
 
 from kcy.sql_app.conection_redis import redis_client
 
+from fastapi.responses import StreamingResponse
+
 models.Base.metadata.create_all(bind=engin)
 
 app = FastAPI()
 SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
+
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 aouth2_schem = OAuth2PasswordBearer(tokenUrl="token")
@@ -140,20 +145,94 @@ async def load_albums(start_time: Union[str, None], end_time: Union[str, None], 
     :return: 相册
     """
     print("开始请求接口")
-    print("start_time",start_time)
-    print("end_time",end_time)
-    albums_list = crud.get_albums(db,start_time,end_time)
-    print(albums_list)
+    print("start_time", start_time)
+    print("end_time", end_time)
+    albums_list = crud.get_albums(db, start_time, end_time)
+    photo_list = crud.get_photo_all(db,albums_list)
+    data_list = []  # 所有时间线列表
+    # print(photo_list)
+    for temp in photo_list:
+        temp = temp[0]
+        time_lien_one = {}
+        photos = []
+        print(temp)
+        time_lien_one['desc'] = temp['desc']
+        print("时间线描述：",time_lien_one['desc'])
+        time_lien_one['time'] = temp['albumName']  # 相册名就是时间名
+        print("相册名",time_lien_one['time'])
+        for photo in temp['photos']:
+            # photo_data = crud.get_object('images', photo.FilePath)
+            photos.append('http://127.0.0.1:8080/timeline/'+photo.FilePath)
+        time_lien_one['image_list'] = photos
+        data_list.append(time_lien_one)
+    print(data_list)
     # 请求数据库查询
-    return {"code": 2000, "message": "请求成功", "data": albums_list}
+    return {"code": 2000, "message": "请求成功", "data": data_list}
+
+
+@app.get("/timeline/{time}/{filename}")
+async def get_image(time: str, filename: str):
+    path = "/".join([time, filename])
+    print(path)
+    image = crud.get_object('images', path)
+    # print(image.data)
+    return StreamingResponse(image,media_type="image/jpeg")
+
+
 
 
 
 @app.post("/upload")
-async def upload_albums(file:list[UploadFile]):
-    print(file)
-
-
+async def upload_albums(token: str = Header(), desc: str = Body(), file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """
+    :param token: 用户token
+    :param desc: 相册描述
+    :param file: 图片文件
+    :param db:
+    :return:
+    """
+    print("开始上传")
+    print(token)
+    print(desc)
+    # 解码 JWT 的负载部分
+    parts = token.split('.')
+    payload_base64 = parts[1]
+    payload_json = base64.urlsafe_b64decode(payload_base64).decode('utf-8')
+    user_name = json.loads(payload_json)['sub']
+    # print(user_name)  # 打印负载内容
+    user = crud.get_user(db, user_name)
+    # print(user.id)
+    # 验证 JWT 的签名
+    # decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    # print(decoded_token)
+    # print(type(decoded_token))
+    # encoded_jwt = jwt.encode(token, SECRET_KEY, algorithm=ALGORITHM)
+    put_object = await crud.put_object("images", file.filename, file)
+    print(put_object)
+    name = put_object.object_name
+    # print(name)
+    photo_split = name.split('/')
+    # print(photo_split)
+    today = datetime.now().strftime('%Y-%m-%d')
+    albums = schemas.Albums(UserID=user.id, AlbumName=photo_split[0], Description=desc, CreatedAt=today)
+    albums_exist = crud.get_albums_by_name(db, albums)
+    # 添加相册前查看相册是否已经创建
+    if albums_exist is not None:
+        print("相册已经存在，不需要创建")
+    else:
+        print("第一次，创建相册")
+        crud.add_albums(db, albums)
+        print("相册创建成功")
+    albums = crud.get_albums_by_name(db, albums)
+    photo = schemas.Photos(AlbumID=albums.AlbumID, PhotoName=photo_split[1], FilePath=name)
+    if crud.get_photo_by_album_and_name(db,albums,photo) is not None:
+        print("图片已经在该相册存在，不需要添加")
+    else:
+        crud.add_photos(db, photo)
+    if put_object:
+        return {"code": 2000, "message": "长传成功"}
+    else:
+        return {"code": 400, "message": "长传失败"}
 
 
 @app.post("/users/{user_id}/items", response_model=schemas.Item)
