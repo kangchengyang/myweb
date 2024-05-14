@@ -9,7 +9,7 @@ import router from './router'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'animate.css';
-
+import '@icon-park/vue-next/styles/index.css'
 
 
 

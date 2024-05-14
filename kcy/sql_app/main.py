@@ -148,8 +148,8 @@ async def load_albums(start_time: Union[str, None], end_time: Union[str, None], 
     print("start_time", start_time)
     print("end_time", end_time)
     albums_list = crud.get_albums(db, start_time, end_time)
-    photo_list = crud.get_photo_all(db,albums_list)
-    data_list = []  # 所有时间线列表
+    photo_list = crud.get_photo_all(db, albums_list)
+    data_list = {}  # 所有时间线列表
     # print(photo_list)
     for temp in photo_list:
         temp = temp[0]
@@ -157,16 +157,16 @@ async def load_albums(start_time: Union[str, None], end_time: Union[str, None], 
         photos = []
         print(temp)
         time_lien_one['desc'] = temp['desc']
-        print("时间线描述：",time_lien_one['desc'])
-        time_lien_one['time'] = temp['albumName']  # 相册名就是时间名
-        print("相册名",time_lien_one['time'])
+        print("时间线描述：", time_lien_one['desc'])
+        time_lien_one['time'] = str(temp['albumName'])  # 相册名就是时间名
+        print(type(time_lien_one['time']))
+        print("相册名", time_lien_one['time'])
         for photo in temp['photos']:
             # photo_data = crud.get_object('images', photo.FilePath)
-            photos.append('http://127.0.0.1:8080/timeline/'+photo.FilePath)
+            photos.append('http://127.0.0.1:8080/timeline/' + photo.FilePath)
         time_lien_one['image_list'] = photos
-        data_list.append(time_lien_one)
+        data_list[time_lien_one['time']] = time_lien_one
     print(data_list)
-    # 请求数据库查询
     return {"code": 2000, "message": "请求成功", "data": data_list}
 
 
@@ -175,15 +175,18 @@ async def get_image(time: str, filename: str):
     path = "/".join([time, filename])
     print(path)
     image = crud.get_object('images', path)
+
     # print(image.data)
-    return StreamingResponse(image,media_type="image/jpeg")
-
-
-
+    if image:
+        content_type = image.headers.get("content-type")
+        return StreamingResponse(image, media_type=content_type)
+    else:
+        return {"code": 400, "message": "文件不存在"}
 
 
 @app.post("/upload")
-async def upload_albums(token: str = Header(), desc: str = Body(), file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_albums(token: str = Header(), desc: str = Body(), file: UploadFile = File(...),
+                        db: Session = Depends(get_db)):
     """
     :param token: 用户token
     :param desc: 相册描述
@@ -225,14 +228,14 @@ async def upload_albums(token: str = Header(), desc: str = Body(), file: UploadF
         print("相册创建成功")
     albums = crud.get_albums_by_name(db, albums)
     photo = schemas.Photos(AlbumID=albums.AlbumID, PhotoName=photo_split[1], FilePath=name)
-    if crud.get_photo_by_album_and_name(db,albums,photo) is not None:
+    file_path = 'http://127.0.0.1:8080/timeline/' + photo.FilePath
+
+    if crud.get_photo_by_album_and_name(db, albums, photo) is not None:
         print("图片已经在该相册存在，不需要添加")
+        return {"code": 400, "message": "长传失败"}
     else:
         crud.add_photos(db, photo)
-    if put_object:
-        return {"code": 2000, "message": "长传成功"}
-    else:
-        return {"code": 400, "message": "长传失败"}
+        return {"code": 2000, "message": "长传成功", "data": {"time": today, 'file_path': file_path}}
 
 
 @app.post("/users/{user_id}/items", response_model=schemas.Item)

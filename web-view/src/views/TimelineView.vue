@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { ElMessage } from 'element-plus'
 import axios from 'axios';
 import { Plus } from '@element-plus/icons-vue'
+import {ErrorPicture, CloseOne} from '@icon-park/vue-next'
 let value2 = ref('')
 let isSearch = ref(false);
 let iserro = ref(false)
@@ -14,11 +15,13 @@ const str_token = JSON.parse(ref(localStorage.getItem('user')).value)['Token']['
 const uploadRef = ref();
 const textareaValue = ref('')
 const album_list = ref([]);
+const loading = ref(true);
 
 //该函数用于接口请求图片数据
 let startTime = value2.value['0']
 let endTime = value2.value['1']
 axios.get(`http://127.0.0.1:8080/timeline?start_time=${startTime}&end_time=${endTime}`).then((response) => {
+  console.log(response)
   album_list.value = response.data.data
   // console.log(response.data.data[0].image_list)
   // response.data.data[0].image_list.forEach(element => {
@@ -66,7 +69,20 @@ function handlePictureCardPreview() {
 }
 
 async function file_success(response) {
-  console.log(response)
+  if (response.code == 2000) {
+    console.log('上传成功');
+    const time = response.data['time']
+    const file_path = response.data['file_path']
+    console.log(time)
+    album_list.value[time]['image_list'].push(file_path)
+    drawer.value = false
+  }
+}
+function file_error() {
+  ElMessage.error('上传失败！')
+}
+async function load_function(image) {
+  console.log(image);
 }
 
 </script>
@@ -103,10 +119,8 @@ async function file_success(response) {
           <div class="upload_albums">
             <el-upload ref="uploadRef" v-model:file-list="fileList" list-type="picture-card"
               :on-preview="handlePictureCardPreview" action="http://127.0.0.1:8080/upload"
-              :headers="{'token':str_token}"
-              :data="{'desc':textareaValue}"
-              :on-remove="handleRemove" :multiple="true" :auto-upload="false" :on-success="file_success"
-              :on-error="file_error">
+              :headers="{ 'token': str_token }" :data="{ 'desc': textareaValue }" :on-remove="handleRemove"
+              :multiple="true" :auto-upload="false" :on-success="file_success" :on-error="file_error">
               <el-icon>
                 <Plus />
               </el-icon>
@@ -132,8 +146,21 @@ async function file_success(response) {
               :preview-src-list="item.image_list" :initial-index="index" /> -->
             <div class="album" style="z-index: 100;">
               <el-image v-for="image, index in item.image_list" :src="image" style="width: 16%; height: 16%;"
-                :preview-src-list="item.image_list" :initial-index="index" />
-              <!-- 注意：如果您想要图片预览功能，您可能需要一个不同的解决方案 -->
+                :preview-src-list="item.image_list" :initial-index="index" lazy>
+                <template #placeholder>
+                  <el-skeleton animated style="width: 100%">
+                    <template #template>
+                      <el-skeleton-item variant="image" style="width: 100%; height: 113px;" />
+                    </template>
+                  </el-skeleton>
+                </template>
+                <template #error>
+                  <div class="image-slot">
+                    <error-picture theme="outline" size="36" fill="#888888" />
+                  </div>
+                </template>
+              </el-image>
+                <!-- 注意：如果您想要图片预览功能，您可能需要一个不同的解决方案 -->
             </div>
           </el-card>
         </el-timeline-item>
@@ -217,14 +244,28 @@ async function file_success(response) {
   padding: 30px 0;
   text-align: center;
 }
+
 :deep(.el-image-viewer__close) {
-    background-color: var(--el-text-color-regular);
-    border-color: #fff;
-    color: #fff;
-    font-size: 24px;
-    height: 44px;
-    width: 44px;
-    left: 92rem;
-    top: 6.8rem;
+  background-color: var(--el-text-color-regular);
+  border-color: #fff;
+  color: #fff;
+  font-size: 24px;
+  height: 44px;
+  width: 44px;
+  left: 92rem;
+  top: 6.8rem;
+}
+:deep(.el-image >img) {
+  height: 113px !important;
+}
+.image-slot {
+  display: flex;
+  justify-content: center;
+  height: 113px;
+  align-items: center;
+  background: #f7f7f7;
+}
+:deep(img.el-image-viewer__img) {
+    height: 70% !important;
 }
 </style>

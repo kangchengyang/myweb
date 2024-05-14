@@ -1,7 +1,7 @@
 from minio import S3Error
 from sqlalchemy.orm import Session
 from kcy.sql_app import models, schemas
-from sqlalchemy import between, and_
+from sqlalchemy import between, and_, desc, func
 from passlib.context import CryptContext
 from io import BytesIO
 from datetime import datetime
@@ -97,8 +97,8 @@ def get_photo_all(db: Session, albums: models.Albums):
     :return:
     """
     result_list = []
-    print(type(albums))
-    for album in albums:
+    print("==========================",albums)
+    for album in albums[::-1]:
         photo_by_album_id = get_photo_by_album_id(db, album),
         # print("查询到的图片", photo_by_album_id)
         result_list.append(photo_by_album_id)
@@ -201,14 +201,11 @@ def get_f_object(bucket_name, object_name):
     client = get_minio_client()
     file_name = str(object_name).split('/')[1]
     try:
-        data = client.fget_object(bucket_name,object_name,file_name)
+        data = client.fget_object(bucket_name, object_name, file_name)
         return data
     except S3Error as s3:
         print(s3)
         return None
-
-
-
 
 
 async def put_object(bucket_name, object_name, data):
@@ -230,7 +227,6 @@ def get_date_based_path():
     # 获取当前日期并格式化为字符串
     today = datetime.now().strftime('%Y-%m-%d')
     return f"{today}"
-
 
 # if __name__ == '__main__':
 #    minios =  get_object("images","微信图片_20240104160506.jpg")
