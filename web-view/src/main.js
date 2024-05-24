@@ -10,9 +10,9 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'animate.css';
 import '@icon-park/vue-next/styles/index.css'
+import axios from 'axios';
 
-
-
+axios.defaults.baseURL = 'http://192.168.1.104:8080'
 
 const app = createApp(App)
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {

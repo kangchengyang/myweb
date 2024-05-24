@@ -47,6 +47,7 @@ class Photos(Base):
     AlbumID = Column(Integer,ForeignKey("albums.AlbumID"))
     PhotoName = Column(VARCHAR(100),nullable=False)
     FilePath = Column(VARCHAR(255),nullable=False)
+    ThumbPath = Column(VARCHAR(255),nullable=False)
     photos_albums = relationship("Albums",back_populates="albums_photos")
 
 

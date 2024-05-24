@@ -3,10 +3,11 @@ import { ref } from 'vue';
 import { ElMessage } from 'element-plus'
 import axios from 'axios';
 import { Plus } from '@element-plus/icons-vue'
-import {ErrorPicture, CloseOne} from '@icon-park/vue-next'
-let value2 = ref('')
+import { ErrorPicture, CloseOne, Click } from '@icon-park/vue-next'
+let s_time = ref('')
+let e_time = ref('')
 let isSearch = ref(false);
-let iserro = ref(false)
+// let iserro = ref(false)
 const drawer = ref(false)
 const textarea = ref('')
 const dialogImageUrl = ref('')
@@ -16,11 +17,12 @@ const uploadRef = ref();
 const textareaValue = ref('')
 const album_list = ref([]);
 const loading = ref(true);
-
+const ip = 'http://192.168.1.104:8080'
 //该函数用于接口请求图片数据
-let startTime = value2.value['0']
-let endTime = value2.value['1']
-axios.get(`http://127.0.0.1:8080/timeline?start_time=${startTime}&end_time=${endTime}`).then((response) => {
+let startTime = s_time.value
+let endTime = e_time.value
+console.log(startTime, endTime)
+axios.get(`/timeline?start_time=${startTime}&end_time=${endTime}`).then((response) => {
   console.log(response)
   album_list.value = response.data.data
   // console.log(response.data.data[0].image_list)
@@ -29,25 +31,19 @@ axios.get(`http://127.0.0.1:8080/timeline?start_time=${startTime}&end_time=${end
   // });
 })
 const searchTime = () => {
-  if (value2.value == null) {
-    iserro.value = true
-    setTimeout(function () {
-      iserro.value = false
-    }, 3000)
-    return
-  }
-  startTime = value2.value['0']
-  endTime = value2.value['1']
+  startTime = s_time.value
+  endTime = e_time.value
   console.log("选择的开始时间为:", startTime, "----结束时间为:", endTime)
-  if (startTime == null || endTime == null) {
+  if (startTime == '' || endTime == '') {
     ElMessage.error('错误：请选择时间')
   } else {
     //改变搜索按钮样式
     isSearch.value = !isSearch.value;
-    axios.get(`http://127.0.0.1:8080/timeline?start_time=${startTime}&end_time=${endTime}`).then((response) => {
-      console.log(response)
-    })
     setTimeout(function () {
+      axios.get(`/timeline?start_time=${startTime}&end_time=${endTime}`).then((response) => {
+        console.log(response)
+        album_list.value = response.data.data
+      })
       isSearch.value = false;
     }, 3000)
   }
@@ -70,11 +66,18 @@ function handlePictureCardPreview() {
 
 async function file_success(response) {
   if (response.code == 2000) {
+    ElMessage.success('长传成功！')
     console.log('上传成功');
     const time = response.data['time']
-    const file_path = response.data['file_path']
-    console.log(time)
+    const file_path = response.data['file_path'] // 实际图
+    const thumb_path = response.data['thumb_path'] //缩略图
+    console.log(response)
+    if (!(time in album_list.value)) {
+      console.log('当天第一次上传文件，没有这个时间字典，需要创建')
+      album_list.value[time] = { 'desc': textareaValue.value, 'time': time, 'image_list': [], 'thumb_list': [] }
+    }
     album_list.value[time]['image_list'].push(file_path)
+    album_list.value[time]['thumb_list'].push(thumb_path)
     drawer.value = false
   }
 }
@@ -84,43 +87,61 @@ function file_error() {
 async function load_function(image) {
   console.log(image);
 }
-
+const befor_upload = () => {
+  if (textareaValue.value != '') {
+    return true
+  } else {
+    ElMessage.error('请输入相册描述!')
+    return false
+  }
+}
 </script>
 
 <template>
   <div class="timelien-left">
     <!--时间选择-->
-    <div style="display: flex;">
-      <div class="demo-datetime-picker">
-        <div class="block" style="display: flex;">
-          <div><span class="select-time-text">时间:</span></div>
-          <el-date-picker v-model="value2" type="datetimerange" start-placeholder="开始时间" end-placeholder="结束时间"
-            format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
-          <el-button type="primary" :disabled=isSearch style="margin-left: 0.8rem; width:5.2rem; outline: none;"
-            @click="searchTime">
-            <el-icon v-if="!isSearch" style="vertical-align: middle">
-              <Search />
-              <span style="vertical-align: middle"> 搜索 </span>
-            </el-icon>
-            <el-icon v-else class="is-loading">
-              <Loading />
-            </el-icon>
-          </el-button>
+    <div>
+      <div class="demo-datetime-picker" style="display: block;">
+        <div class="block" style="padding: 0;">
+          <div style="text-align: left; margin-left: auto; margin-right: auto; width: 52%;">
+            <div style="width: 8rem;">
+              <span class="select-time-text">时间:</span>
+            </div>
+          </div>
+          <!-- <el-date-picker style="width: 40%;" v-model="value2" type="datetimerange" start-placeholder="开始时间"
+            end-placeholder="结束时间" format="YYYY-MM-DD" value-format="YYYY-MM-DD" /> -->
+          <div style="width: 100%;">
+            <el-date-picker v-model="s_time" type="date" placeholder="开始日期" format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD" style="width: 30%;" />
+            <el-date-picker v-model="e_time" type="date" placeholder="结束日期" format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD" style="width: 30%; margin-left: 0.8rem;" />
+          </div>
+          <div style="margin-top:0.2rem;">
+            <el-button type="primary" :disabled=isSearch style="margin-right: 0.8rem; width:5.2rem; outline: none;"
+              @click="searchTime">
+              <el-icon v-if="!isSearch" style="vertical-align: middle">
+                <span style="vertical-align: middle;"> 搜索 </span>
+              </el-icon>
+              <el-icon v-else class="is-loading">
+                <Loading />
+              </el-icon>
+            </el-button>
+            <el-button type="primary" style="margin-left:0.8rem;" @click="drawer = true">
+              <el-icon>
+                <upload />
+              </el-icon>
+              <span> 上传 </span>
+            </el-button>
+          </div>
         </div>
       </div>
       <div class="upload_albums_butn">
-        <el-button type="primary" style="margin-left: 16px" @click="drawer = true">
-          <el-icon>
-            <upload />
-          </el-icon>
-          <span> 上传 </span>
-        </el-button>
-        <el-drawer v-model="drawer" title="上传图片" :with-header="false" size="35%">
+        <el-drawer v-model="drawer" title="上传图片" :with-header="false" size="60%">
           <div class="upload_albums">
             <el-upload ref="uploadRef" v-model:file-list="fileList" list-type="picture-card"
-              :on-preview="handlePictureCardPreview" action="http://127.0.0.1:8080/upload"
-              :headers="{ 'token': str_token }" :data="{ 'desc': textareaValue }" :on-remove="handleRemove"
-              :multiple="true" :auto-upload="false" :on-success="file_success" :on-error="file_error">
+              :on-preview="handlePictureCardPreview" :action="ip + '/upload'" :headers="{ 'token': str_token }"
+              :data="{ 'desc': textareaValue }" :on-remove="handleRemove" :multiple="true" :auto-upload="false"
+              :on-success="file_success" :on-error="file_error" :before-upload="befor_upload">
               <el-icon>
                 <Plus />
               </el-icon>
@@ -138,14 +159,16 @@ async function load_function(image) {
     </div>
     <!--时间线-->
     <div style="display: flex; justify-content: space-evenly;">
-      <el-timeline style="width:85rem;">
+      <el-timeline style="width:85rem;padding-left: 0;">
         <el-timeline-item v-for="item in album_list" :timestamp="item.time" placement="top">
           <el-card>
             <el-text tag="i">{{ item.desc }}</el-text>
             <!--旧版 <el-image v-for="image,index in item.image_list" :src="image" style="width: 4rem; height: 4rem;"
               :preview-src-list="item.image_list" :initial-index="index" /> -->
+            <!--image_list: 实际图   
+                 thumb_list:  缩略图-->
             <div class="album" style="z-index: 100;">
-              <el-image v-for="image, index in item.image_list" :src="image" style="width: 16%; height: 16%;"
+              <el-image v-for="image, index in item.thumb_list" :src="image" style="width: 16%; height: 16%;"
                 :preview-src-list="item.image_list" :initial-index="index" lazy>
                 <template #placeholder>
                   <el-skeleton animated style="width: 100%">
@@ -160,7 +183,6 @@ async function load_function(image) {
                   </div>
                 </template>
               </el-image>
-                <!-- 注意：如果您想要图片预览功能，您可能需要一个不同的解决方案 -->
             </div>
           </el-card>
         </el-timeline-item>
@@ -250,14 +272,14 @@ async function load_function(image) {
   border-color: #fff;
   color: #fff;
   font-size: 24px;
-  height: 44px;
-  width: 44px;
-  left: 92rem;
-  top: 6.8rem;
+  margin-top: 4rem;
+  margin-right: 4rem;
 }
+
 :deep(.el-image >img) {
-  height: 113px !important;
+  /* height: 113px !important; */
 }
+
 .image-slot {
   display: flex;
   justify-content: center;
@@ -265,7 +287,9 @@ async function load_function(image) {
   align-items: center;
   background: #f7f7f7;
 }
-:deep(img.el-image-viewer__img) {
-    height: 70% !important;
-}
+
+/* :deep(img.el-image-viewer__img) {
+  height: 50%;
+  width: 50%;
+} */
 </style>

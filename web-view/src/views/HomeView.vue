@@ -18,13 +18,13 @@ import { useRouter } from 'vue-router';
       <TestView/>
     </main>
     <WelcomeItem/>
-    <Time></Time>
+    <!-- <Time></Time> -->
   </div>
   <!-- <Carousel/> -->
 </template>
 <style scoped>
-  main{
-    margin-top: 4.4rem;
-    margin-right: 14rem;
+
+  :deep(.el-carousel__indicator--horizontal){
+    padding: 0;
   }
 </style>

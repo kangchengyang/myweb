@@ -1,6 +1,6 @@
 import base64
 from datetime import timedelta, datetime, timezone
-
+from PIL import Image
 from typing import Union
 from io import BytesIO
 import json
@@ -22,11 +22,16 @@ from kcy.sql_app.conection_redis import redis_client
 
 from fastapi.responses import StreamingResponse
 
+from copy import deepcopy
+import random
+
 models.Base.metadata.create_all(bind=engin)
 
 app = FastAPI()
 SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
+
+IP = 'http://192.168.1.104:808'
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -120,21 +125,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             "data": {"user": user.username, "Token": Token(access_token=access_token, token_type="bearer")}}
 
 
-# @app.post('/login')
-# def login(user: schemas.User, db: Session = Depends(get_db)):
-#     db_user = crud.get_user_by_verify(db, user.username, user.password)
-#     if db_user is None:
-#         return {"code": 2001, "message": "账号密码错误"}
-#     return {"code": 2000, "message": "登录成功", "data": db_user}
-
-
-# @app.post("/users/{user_id}", response_model=list[schemas.User])
-# def read_user(user_id: int, db: Session = Depends(get_db)):
-#     db_user = crud.get_user(db, user_id=user_id)
-#     if db_user is None:
-#         raise HTTPException(status_code=404, detail="该用户没找到")
-#     return [db_user]
-
 @app.get("/timeline")
 async def load_albums(start_time: Union[str, None], end_time: Union[str, None], db: Session = Depends(get_db)):
     """
@@ -155,6 +145,7 @@ async def load_albums(start_time: Union[str, None], end_time: Union[str, None], 
         temp = temp[0]
         time_lien_one = {}
         photos = []
+        thumbs = []  # 预览图
         print(temp)
         time_lien_one['desc'] = temp['desc']
         print("时间线描述：", time_lien_one['desc'])
@@ -162,19 +153,22 @@ async def load_albums(start_time: Union[str, None], end_time: Union[str, None], 
         print(type(time_lien_one['time']))
         print("相册名", time_lien_one['time'])
         for photo in temp['photos']:
+            print(photo)
             # photo_data = crud.get_object('images', photo.FilePath)
-            photos.append('http://127.0.0.1:8080/timeline/' + photo.FilePath)
+            photos.append(IP+'/timeline/images/' + photo.FilePath)
+            thumbs.append(IP+'/timeline/thumb/' + str(photo.ThumbPath))
         time_lien_one['image_list'] = photos
+        time_lien_one['thumb_list'] = thumbs
         data_list[time_lien_one['time']] = time_lien_one
-    print(data_list)
+    # print(data_list)
     return {"code": 2000, "message": "请求成功", "data": data_list}
 
 
-@app.get("/timeline/{time}/{filename}")
-async def get_image(time: str, filename: str):
+@app.get("/timeline/{photo_type}/{time}/{filename}")
+async def get_image(time: str, filename: str, photo_type: str):
     path = "/".join([time, filename])
     print(path)
-    image = crud.get_object('images', path)
+    image = crud.get_object(photo_type, path)
 
     # print(image.data)
     if image:
@@ -195,28 +189,26 @@ async def upload_albums(token: str = Header(), desc: str = Body(), file: UploadF
     :return:
     """
     print("开始上传")
-    print(token)
-    print(desc)
+    # print(token)
+    # print(desc)
     # 解码 JWT 的负载部分
     parts = token.split('.')
     payload_base64 = parts[1]
     payload_json = base64.urlsafe_b64decode(payload_base64).decode('utf-8')
     user_name = json.loads(payload_json)['sub']
-    # print(user_name)  # 打印负载内容
     user = crud.get_user(db, user_name)
-    # print(user.id)
     # 验证 JWT 的签名
     # decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     # print(decoded_token)
     # print(type(decoded_token))
     # encoded_jwt = jwt.encode(token, SECRET_KEY, algorithm=ALGORITHM)
-    put_object = await crud.put_object("images", file.filename, file)
-    print(put_object)
-    name = put_object.object_name
-    # print(name)
-    photo_split = name.split('/')
-    # print(photo_split)
+    # 取出图片路径，判断图片是否存在
+    image_path = await crud.get_md5_name(file)
+    print('image_path:', image_path)
+    photo_split = image_path.split('/')  # 拆分路径后的数组
+    print('photo_split:', photo_split)
     today = datetime.now().strftime('%Y-%m-%d')
+    print("desc",desc)
     albums = schemas.Albums(UserID=user.id, AlbumName=photo_split[0], Description=desc, CreatedAt=today)
     albums_exist = crud.get_albums_by_name(db, albums)
     # 添加相册前查看相册是否已经创建
@@ -227,15 +219,49 @@ async def upload_albums(token: str = Header(), desc: str = Body(), file: UploadF
         crud.add_albums(db, albums)
         print("相册创建成功")
     albums = crud.get_albums_by_name(db, albums)
-    photo = schemas.Photos(AlbumID=albums.AlbumID, PhotoName=photo_split[1], FilePath=name)
-    file_path = 'http://127.0.0.1:8080/timeline/' + photo.FilePath
-
+    photo = schemas.Photos(AlbumID=albums.AlbumID, PhotoName=photo_split[1], FilePath=image_path, ThumbPath="")
     if crud.get_photo_by_album_and_name(db, albums, photo) is not None:
         print("图片已经在该相册存在，不需要添加")
         return {"code": 400, "message": "长传失败"}
     else:
+        await file.seek(0)
+        result = await crud.put_object_thumb("thumb", file.filename, file)
+        thumb_object_name = result.object_name
+        print("object_name:", thumb_object_name)
+        await file.seek(0)
+        put_object = await crud.put_object("images", file.filename, file)
+        photo.ThumbPath = str(thumb_object_name)
+        print(photo)
         crud.add_photos(db, photo)
-        return {"code": 2000, "message": "长传成功", "data": {"time": today, 'file_path': file_path}}
+        file_path = IP+'/timeline/images/' + photo.FilePath
+        thumb_path = IP+'/timeline/thumb/' + photo.ThumbPath
+        return {"code": 2000, "message": "长传成功",
+                "data": {"time": today, 'file_path': file_path, "thumb_path": thumb_path}}
+
+
+@app.get('/')
+async def get_index(db: Session = Depends(get_db)):
+    albums = crud.get_albums(db,'undefined','undefined')
+    # print(albums[-1].AlbumName)
+    photos = crud.get_photo_all(db,[albums[-1]])
+    # print(photos[0][0]['photos'])
+    data = [IP+'/timeline/thumb/'+i.ThumbPath for i in random.sample(photos[0][0]['photos'],5)]
+    return {'code':2000,'message':'请求成功','data':data}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 @app.post("/users/{user_id}/items", response_model=schemas.Item)
@@ -252,4 +278,4 @@ def read_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 if __name__ == '__main__':
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

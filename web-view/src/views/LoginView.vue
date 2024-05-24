@@ -10,10 +10,12 @@ const username = ref();
 const password = ref();
 
 const login =(event)=>{
+    console.log('开始login')
     event.preventDefault();
     formData.append("username",username.value)
     formData.append("password",password.value)
-    axios.post('http://127.0.0.1:8080/login',formData).then((response)=>{
+    console.log('开始接口访问')
+    axios.post('/login',formData).then((response)=>{
         console.log(response)
         if(response.data["code"]===2000){
             ElMessage({

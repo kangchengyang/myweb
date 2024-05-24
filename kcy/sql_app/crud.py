@@ -1,3 +1,5 @@
+import io
+
 from minio import S3Error
 from sqlalchemy.orm import Session
 from kcy.sql_app import models, schemas
@@ -8,6 +10,7 @@ from datetime import datetime
 from kcy.sql_app.get_md5 import generate_object_md5
 from kcy.sql_app.getminio import get_minio_client
 import traceback
+from PIL import Image
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -82,14 +85,14 @@ def get_albums(db: Session, start_time: str, end_time: str):
     :param end_time:
     :return:
     """
-    if start_time != 'undefined' and end_time != 'undefined':
+    if (start_time != 'undefined' and start_time != '') and (end_time != 'undefined' and end_time != ''):
         albums = db.query(models.Albums).filter(between(models.Albums.CreatedAt, start_time, end_time)).all()
     else:
         albums = db.query(models.Albums).all()
     return albums
 
 
-def get_photo_all(db: Session, albums: models.Albums):
+def get_photo_all(db: Session, albums):
     """
     根据提供的相册列表，获取所有图片
     :param db:
@@ -97,7 +100,7 @@ def get_photo_all(db: Session, albums: models.Albums):
     :return:
     """
     result_list = []
-    print("==========================",albums)
+    print("==========================", albums)
     for album in albums[::-1]:
         photo_by_album_id = get_photo_by_album_id(db, album),
         # print("查询到的图片", photo_by_album_id)
@@ -223,11 +226,43 @@ async def put_object(bucket_name, object_name, data):
         return None
 
 
+async def put_object_thumb(bucket_name, object_name, file):
+    # print(file)
+    client = get_minio_client()
+    try:
+        file_contents = await file.read()
+        # print(file_contents)
+        file_io = BytesIO(file_contents)
+        # print("file_io:", file_io)
+        image = Image.open(file_io)
+        # print("image:", image)
+        image.thumbnail((1920, 1080))
+        thumb_io = BytesIO()
+        image.save(thumb_io, format=image.format)
+        thumb_io.seek(0)
+        # print(type(image))
+        md_5 = generate_object_md5(thumb_io)
+        object_name = f"{get_date_based_path()}/{md_5}.{object_name.split('.')[-1]}"
+        result = client.put_object(bucket_name, object_name, thumb_io, length=thumb_io.getbuffer().nbytes,
+                                   content_type=file.content_type)
+        return result
+    except S3Error:
+        print(traceback.format_exc())
+        return None
+
+
 def get_date_based_path():
     # 获取当前日期并格式化为字符串
     today = datetime.now().strftime('%Y-%m-%d')
     return f"{today}"
 
+
+async def get_md5_name(file):
+    file_contents = await file.read()
+    file_io = BytesIO(file_contents)
+    md_5 = generate_object_md5(file_io)
+    object_name = f"{get_date_based_path()}/{md_5}.{file.filename.split('.')[-1]}"
+    return object_name
 # if __name__ == '__main__':
 #    minios =  get_object("images","微信图片_20240104160506.jpg")
 #    print(len(minios.data))

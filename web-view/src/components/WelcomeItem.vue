@@ -24,7 +24,7 @@
         style="width: 100%"
       />
     </el-card> 
-    <el-card class="card-left" style="max-width: 25%; margin-right: 2rem;" shadow="hover">
+    <el-card class="card-left fillnay-card" style="max-width: 25%;"shadow="hover">
       <!-- <template #header>Yummy hamburger</template> -->
       <img
         src="/src/assets/img/temp/imag7.jpg"
@@ -40,9 +40,30 @@
   padding:0.2rem;
   background-color: #0f405485;
 }
-.card-left{
-  margin: 2rem 0 2rem 2rem;
+@media (max-width: 600px){
+  .card-left{
+  margin-left: 0.4rem;
+  }
+  .imag-list{
+    margin-top: 0.4rem;
+  }
+  .fillnay-card{
+    margin-right: 0.4rem;
+  }
 }
+@media (min-width: 600px){
+  .card-left{
+  margin-left: 2rem;
+
+  }
+  .imag-list{
+    margin-top: 2rem;
+  }
+  .fillnay-card{
+    margin-right: 2rem;
+  }
+}
+
 .imag-list{
   display: flex;
 }

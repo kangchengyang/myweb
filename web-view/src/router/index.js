@@ -25,7 +25,7 @@ const router = createRouter({
   ]
 })
 router.beforeEach((to,from,next)=>{
-  const user =localStorage.getItem("user");
+  const user = localStorage.getItem("user");
   //根据token判断当前访问界面的路由
   if(to.name=="login"){
     if(user!=null){

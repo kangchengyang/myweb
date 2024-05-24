@@ -64,10 +64,12 @@ class Photos(BaseModel):
     AlbumID：相册ID
     PhotoName：图片名称
     FilePath：图片路径
+    thumbPath: 缩略图路径
     """
     AlbumID: int
     PhotoName: str
     FilePath: str
+    ThumbPath: str
 
 
 class Permissions(BaseModel):
